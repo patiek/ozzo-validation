@@ -91,10 +91,21 @@ func ValidateStructWithContext(ctx context.Context, structPtr interface{}, field
 			return NewInternalError(ErrFieldNotFound(i))
 		}
 		var err error
-		if ctx == nil {
-			err = Validate(fv.Elem().Interface(), fr.rules...)
+		// Keep structs as a pointer to struct for validation.
+		// This ensures that value.(Validatable) interface casts work for (*structDef) Validate(...) even when
+		// the field is defined as value structDef.
+		if fv.Elem().Kind() == reflect.Struct {
+			if ctx == nil {
+				err = Validate(fv.Interface(), fr.rules...)
+			} else {
+				err = ValidateWithContext(ctx, fv.Interface(), fr.rules...)
+			}
 		} else {
-			err = ValidateWithContext(ctx, fv.Elem().Interface(), fr.rules...)
+			if ctx == nil {
+				err = Validate(fv.Elem().Interface(), fr.rules...)
+			} else {
+				err = ValidateWithContext(ctx, fv.Elem().Interface(), fr.rules...)
+			}
 		}
 		if err != nil {
 			if ie, ok := err.(InternalError); ok && ie.InternalError() != nil {
